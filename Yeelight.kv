@@ -1,0 +1,64 @@
+#:kivy 1.0.9
+
+<Controller>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            Label:
+                text: root.lamps_info
+
+        BoxLayout:
+            orientation: 'horizontal'
+
+            Button:
+                text: 'Discover'
+                on_press: root.discover()
+
+            Button:
+                text: 'On'
+                on_press: root.on()
+
+            Button:
+                text: 'Off'
+                on_press: root.off()
+
+        BoxLayout:
+            id: preset_container
+            orientation: 'horizontal'
+
+        GridLayout:
+            cols: 2
+            spacing: 20, 0
+            Label:
+                text: "Brightness: " + str(brightness_slider.value)
+                size_hint_x: None
+                width: 300
+                text_size: self.size
+                halign: 'right'
+                valign: 'middle'
+
+            Slider:
+                id: brightness_slider
+                min: 0
+                max: 100
+                step: 1
+                on_value: root.brightness(brightness_slider.value)
+
+            Label:
+                text: "Temperature: " + str(temperature_slider.value)
+                size_hint_x: None
+                width: 300
+                text_size: self.size
+                halign: 'right'
+                valign: 'middle'
+
+            Slider:
+                id: temperature_slider
+                min: 2000
+                max: 6000
+                step: 1
+                on_value: root.temperature(temperature_slider.value)

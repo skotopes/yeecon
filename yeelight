@@ -1,0 +1,99 @@
+#!/bin/bash
+"exec" "`dirname $0`/venv/bin/python" "$0" "$@"
+
+import os
+import json
+import logging
+import yeelight
+
+import config
+
+from kivy.app import App
+from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
+from kivy.properties import *
+
+
+class Controller(FloatLayout):
+    lamps_info = StringProperty()
+
+    def __init__(self):
+        FloatLayout.__init__(self)
+        self.logger = logging.getLogger()
+        self.discover_dir = os.path.dirname(os.path.realpath(__file__))
+        self.discover_file = os.path.join(self.discover_dir, ".discover")
+        self._lampsLoad()
+        self._presetsLoad()
+
+    def _lampsLoad(self):
+        if not os.path.exists(self.discover_file):
+            self.discover()
+        self.lamps = json.load(open(self.discover_file, "r"))
+        self._lampsUpdateInfo();
+
+    def _lampsSave(self):
+        json.dump(self.lamps, open(self.discover_file, "w"))
+        self._lampsUpdateInfo();
+
+    def _lampsUpdateInfo(self):
+        self.lamps_info = f"Lamps: {len(self.lamps)}"
+
+    def _presetsLoad(self):
+        for name in config.PRESETS.keys():
+            self.ids['preset_container'].add_widget(
+                Button(
+                    text=name,
+                    on_press=lambda x, n=name: self.preset(n)
+                )
+            )
+
+    def discover(self):
+        self.logger.info("Discovering yeelight lamps")
+        self.lamps = yeelight.discover_bulbs()
+        for lamp in self.lamps:
+            self.logger.info(f"Found: {lamp['ip']}")
+        self._lampsSave()
+
+    def on(self):
+        self.logger.info("Switching On")
+        for lamp in self.lamps:
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.turn_on()
+
+    def off(self):
+        self.logger.info("Switching Off")
+        for lamp in self.lamps:
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.turn_off()
+
+    def brightness(self, level):
+        self.logger.info(f"Setting brightness to {level}")
+        for lamp in self.lamps:
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.set_brightness(level)
+
+    def temperature(self, temp):
+        self.logger.info(f"Setting temp to {temp}")
+        for lamp in self.lamps:
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.set_color_temp(temp)
+
+    def preset(self, name):
+        self.logger.info(f"Using preset: {name}")
+        for lamp in self.lamps:
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            preset = config.PRESETS[name]
+            if 'brightness'in preset: bulb.set_brightness(preset['brightness'])
+            if 'temperature' in preset: bulb.set_color_temp(preset['temperature'])
+
+class YeelightApp(App):
+    def build(self):
+        return Controller()
+
+if __name__ == '__main__':
+    YeelightApp().run()

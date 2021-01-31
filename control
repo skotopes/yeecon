@@ -1,0 +1,108 @@
+#!/bin/bash
+"exec" "`dirname $0`/venv/bin/python" "$0" "$@"
+
+import argparse
+import logging
+import yeelight
+import sys
+import os
+import json
+
+import config
+
+
+class Main:
+    def __init__(self):
+        self.logger = logging.getLogger()
+        self.discover_dir = os.path.dirname(os.path.realpath(__file__))
+        self.discover_file = os.path.join(self.discover_dir, ".discover")
+        # Argument parser
+        self.parser = argparse.ArgumentParser()
+        self.parser.add_argument("-d", "--debug", action="store_true", help="Debug")
+        subparsers = self.parser.add_subparsers(help="sub-command help")
+        discover = subparsers.add_parser("discover", help="Discover lamps and create .discover file" )
+        discover.set_defaults(func=self.discover)
+        on = subparsers.add_parser("on", help="Switch lamp(s) On" )
+        on.set_defaults(func=self.on)
+        off = subparsers.add_parser("off", help="Switch lamp(s) Off" )
+        off.set_defaults(func=self.off)
+        brightness = subparsers.add_parser("brightness", help="Set lamp(s) brightness level" )
+        brightness.add_argument("level", type=int, help="Brightness level(1-100)")
+        brightness.set_defaults(func=self.brightness)
+        color_temp = subparsers.add_parser("color_temp", help="Set lamp(s) color temperature" )
+        color_temp.add_argument("level", type=int, help="Color temperature")
+        color_temp.set_defaults(func=self.color_temp)
+        preset = subparsers.add_parser("preset", help="Set preset" )
+        preset.add_argument("name", type=str, help="Preset name")
+        preset.set_defaults(func=self.preset)
+
+    def _getLamps(self):
+        if not os.path.exists(self.discover_file):
+            self.discover()
+        return json.load(open(self.discover_file, "r"))
+
+    def __call__(self):
+        self.args = self.parser.parse_args()
+        if "func" not in self.args:
+            self.parser.error("Choose something to do")
+        # configure log output
+        self.log_level = logging.DEBUG if self.args.debug else logging.INFO
+        self.logger.setLevel(self.log_level)
+        self.handler = logging.StreamHandler(sys.stdout)
+        self.handler.setLevel(self.log_level)
+        self.formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+        self.handler.setFormatter(self.formatter)
+        self.logger.addHandler(self.handler)
+        # execute requested function
+        self.args.func()
+
+    def discover(self):
+        self.logger.info("Discovering yeelight lamps")
+        lamps = yeelight.discover_bulbs()
+        for lamp in lamps:
+            self.logger.info(f"Found: {lamp['ip']}")
+        json.dump(lamps, open(self.discover_file, "w"))
+
+    def on(self):
+        self.logger.info("Switching On")
+        for lamp in self._getLamps():
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.turn_on()
+
+    def off(self):
+        self.logger.info("Switching Off")
+        for lamp in self._getLamps():
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.turn_off()
+
+    def brightness(self):
+        self.logger.info(f"Setting brightness to {self.args.level}")
+        for lamp in self._getLamps():
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.set_brightness(self.args.level)
+
+    def color_temp(self):
+        self.logger.info(f"Setting brightness to {self.args.level}")
+        for lamp in self._getLamps():
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            bulb.set_color_temp(self.args.level)
+
+    def preset(self):
+        if not self.args.name in config.PRESETS:
+            self.logger.error(f"Unknown preset: {self.args.name}")
+            return
+        self.logger.info(f"Using preset: {self.args.name}")
+        for lamp in self._getLamps():
+            self.logger.info(f"Sending to {lamp['ip']}")
+            bulb = yeelight.Bulb(lamp['ip'])
+            preset = config.PRESETS[self.args.name]
+            if 'brightness'in preset: bulb.set_brightness(preset['brightness'])
+            if 'temperature' in preset: bulb.set_color_temp(preset['temperature'])
+
+
+if __name__ == '__main__':
+    Main()()
