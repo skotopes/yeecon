@@ -1,10 +1,12 @@
 # About
 
-Simple toolkit to control yeelight smart bulbs 
+Simple toolkit to control yeelight smart bulbs.
+
 
 # Requirements
 
 - python 3
+- yee lamps with LAN control enabled
 
 ## Installing Dependencies With venv
 
